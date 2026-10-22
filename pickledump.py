@@ -8,7 +8,7 @@ import io
 import pprint
 from pathlib import Path
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 def _get_pickle_protocol(ops):
     """
