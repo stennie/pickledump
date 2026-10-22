@@ -88,7 +88,47 @@ def _summarise_pickle_file(pickle_file, out_file):
         for class_name in custom_classes:
             click.echo(f"  - {class_name}", file=out_file)
 
-@click.command()
+class PickledumpCommand(click.Command):
+    """
+    Click command that renders help with grouped option sections.
+    """
+
+    def format_options(self, ctx, formatter):
+        """
+        Write options in grouped sections: Actions, Output options, Disassemble options.
+        """
+        groups = [
+            ('Actions', ('summary', 'disasm', 'dump')),
+            ('Output options', ('output',)),
+            ('Disassemble options', ('annotate', 'indent_level', 'memo')),
+        ]
+
+        written = set()
+        for heading, names in groups:
+            records = []
+            for param in self.get_params(ctx):
+                if isinstance(param, click.Option) and param.name in names:
+                    record = param.get_help_record(ctx)
+                    if record is not None:
+                        records.append(record)
+            if records:
+                with formatter.section(heading):
+                    formatter.write_dl(records)
+                written.update(names)
+
+        leftovers = [
+            param for param in self.get_params(ctx)
+            if isinstance(param, click.Option)
+            and param.name not in written
+            and param.name not in ('help', 'version')
+        ]
+        records = [param.get_help_record(ctx) for param in leftovers]
+        records = [record for record in records if record is not None]
+        if records:
+            with formatter.section('Options'):
+                formatter.write_dl(records)
+
+@click.command(cls=PickledumpCommand)
 @click.version_option(version=__version__, prog_name="pickledump")
 @click.argument('pickle_files', nargs=-1, required=True, type=click.Path(exists=True))
 @click.option(
