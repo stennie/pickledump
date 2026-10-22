@@ -4,20 +4,93 @@ import click
 import pickle
 import pickletools
 import sys
+import io
 import pprint
 from pathlib import Path
 
 __version__ = "1.0.0"
 
+def _get_pickle_protocol(ops):
+    """
+    Determine the Pickle protocol version from a list of (opcode, arg) pairs.
+
+    Protocol 2+ pickles start with a PROTO opcode whose argument is the protocol version.
+    Protocol 0 pickles use text-based opcodes only, while protocol 1 adds binary opcodes
+    (e.g. BININT1, BINUNICODE) and EMPTY_* operations on top of the protocol 0 ones.
+    """
+    protocol = 0
+    for op, arg in ops:
+        if op.name == 'PROTO':
+            protocol = arg
+            break
+        if op.name.startswith('BIN') or op.name.startswith('EMPTY'):
+            protocol = 1
+            break
+    return protocol
+
+class _PickleClassCollector(pickle.Unpickler):
+    """
+    Unpickler subclass that records the object classes referenced
+    by a pickle (via find_class) without discarding them.
+    """
+    def __init__(self, file):
+        super().__init__(file)
+        self.classes = []
+
+    def find_class(self, module, name):
+        if (module, name) not in self.classes:
+            self.classes.append((module, name))
+        return super().find_class(module, name)
+
+def _summarise_pickle_file(pickle_file, out_file):
+    """
+    Print summary information about a single pickle file,
+    including its size, Pickle protocol version, and any custom object classes.
+    """
+    try:
+        with open(pickle_file, 'rb') as f:
+            data = f.read()
+        ops = [(op, arg) for op, arg, _pos in pickletools.genops(data)]
+        protocol = _get_pickle_protocol(ops)
+    except Exception as e:
+        click.echo(f"Error summarising {pickle_file}: {e}", err=True)
+        return
+
+    click.echo(f"  Size:              {len(data)} bytes", file=out_file)
+    click.echo(f"  Pickle protocol:   {protocol}", file=out_file)
+    click.echo(f"  Operations:        {len(ops)}", file=out_file)
+
+    classes = []
+    collector = None
+    try:
+        collector = _PickleClassCollector(io.BytesIO(data))
+        collector.load()
+        classes = list(collector.classes)
+    except Exception as e:
+        if collector is not None:
+            classes = list(collector.classes)
+            if not classes:
+                click.echo(f"Error reading classes from {pickle_file}: {e}", err=True)
+
+    custom_classes = []
+    seen = set()
+    for module, name in classes:
+        class_name = f"{module}.{name}"
+        if class_name in seen:
+            continue
+        seen.add(class_name)
+        if module.split('.')[0] in ('builtins', '__builtin__') or module in ('copy_reg', '__builtin__'):
+            continue
+        custom_classes.append(class_name)
+
+    if custom_classes:
+        click.echo("\nCustom object classes:", file=out_file)
+        for class_name in custom_classes:
+            click.echo(f"  - {class_name}", file=out_file)
+
 @click.command()
 @click.version_option(version=__version__, prog_name="pickledump")
 @click.argument('pickle_files', nargs=-1, required=True, type=click.Path(exists=True))
-@click.option(
-    '--mode',
-    type=click.Choice(['dump', 'disassemble'], case_sensitive=False),
-    default='dump',
-    help='Mode: dump (deserialize) or disassemble (safe for untrusted files)'
-)
 @click.option(
     '--output',
     '-o',
@@ -43,9 +116,27 @@ __version__ = "1.0.0"
     is_flag=True,
     help='Preserve memo between disassemblies (disassemble mode only)'
 )
-def pickle_cli(pickle_files, mode, output, annotate, indent_level, memo):
+@click.option(
+    '--summary',
+    '-s',
+    is_flag=True,
+    help='Summarise information about the pickle file(s), including the Pickle protocol version and custom object classes'
+)
+@click.option(
+    '--disasm',
+    '-x',
+    is_flag=True,
+    help='Disassemble mode (safe for untrusted files)'
+)
+@click.option(
+    '--dump',
+    '-d',
+    is_flag=True,
+    help='Dump mode (deserialize)'
+)
+def pickle_cli(pickle_files, output, annotate, indent_level, memo, summary, disasm, dump):
     """
-    Dump or disassemble Python pickle files.
+    Dump, disassemble, or summarise Python pickle files.
     
     PICKLE_FILES: One or more pickle files to process
     """
@@ -57,13 +148,24 @@ def pickle_cli(pickle_files, mode, output, annotate, indent_level, memo):
     else:
         out_file = sys.stdout
     
+    # Resolve the action via --summary/--disasm/--dump; default is summary.
+    if disasm:
+        mode = 'disassemble'
+    elif dump:
+        mode = 'dump'
+    else:
+        mode = 'summary'
+
     try:
         for pickle_file in pickle_files:
-            if len(pickle_files) > 1:
-                click.echo(f"\n{'='*60}", file=out_file)
-                click.echo(f"File: {pickle_file}", file=out_file)
-                click.echo(f"{'='*60}\n", file=out_file)
+            click.echo(f"\n{'='*60}", file=out_file)
+            click.echo(f"File: {pickle_file}", file=out_file)
+            click.echo(f"{'='*60}\n", file=out_file)
             
+            if mode.lower() == 'summary':
+                _summarise_pickle_file(pickle_file, out_file)
+                continue
+
             with open(pickle_file, 'rb') as f:
                 if mode.lower() == 'dump':
                     try:

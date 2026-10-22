@@ -20,26 +20,53 @@ pickledump <pickle_files> [OPTIONS]
 
 ### Options
 
-- `--mode [dump|disassemble]`: Mode: dump (deserialize) or disassemble (safe for untrusted files). Defaults to `dump`.
+- `--disasm, -x`: Disassemble mode (safe for untrusted files)
+- `--dump, -d`: Dump mode (deserialize)
 - `--output, -o`: Output file (default: stdout)
 - `--annotate, -a`: Annotate each line with opcode descriptions (disassemble mode only)
 - `--indent-level, -l`: Indent level for MARK operations (disassemble mode only). Defaults to 4.
 - `--memo, -m`: Preserve memo between disassemblies (disassemble mode only)
+- `--summary, -s`: Summarise information about the pickle file(s), including the Pickle protocol version and any custom object classes found in the file. This is the default action.
 
 ### Examples
 
 Dump a pickle file:
 
 ```bash
-pickledump data.pkl
+pickledump --dump data.pkl
 ```
 
 Disassemble a pickle file safely:
 
 ```bash
-pickledump --mode disassemble untrusted.pkl
+pickledump --disasm untrusted.pkl
 ```
 
+Summarise information about a pickle file (size, Pickle protocol version and custom object classes):
+
+```bash
+pickledump --summary data.pkl
+```
+
+Summarise multiple pickle files:
+
+```bash
+pickledump --summary data1.pkl data2.pkl
+```
+
+## Testing
+
+Run the test suite with pytest:
+
+```bash
+python -m pytest
+```
+
+Or via the Just task runner:
+
+```bash
+just test
+```
 
 ## License
 
