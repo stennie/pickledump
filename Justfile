@@ -1,6 +1,15 @@
 # Default task: list available tasks
+[private]
 default:
     @just --list
+
+# Build source and wheel distributions
+build:
+    python -m build
+
+# Clean build artifacts
+clean:
+    rm -rf build dist *.egg-info __pycache__
 
 # Install the package
 install:
@@ -10,10 +19,6 @@ install:
 run *ARGS:
     python pickledump.py {{ARGS}}
 
-# Build source and wheel distributions
-build:
-    python -m build
-
-# Clean build artifacts
-clean:
-    rm -rf build dist *.egg-info __pycache__
+# Run the test suite
+test *ARGS:
+    python -m pytest {{ARGS}}
