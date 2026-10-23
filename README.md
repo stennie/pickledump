@@ -1,6 +1,6 @@
 # pickledump
 
-A command-line tool to dump or disassemble Python pickle files.
+A command-line tool to dump, disassemble, or summarise Python pickle files.
 
 ## Installation
 
@@ -10,23 +10,30 @@ pip install .
 
 ## Usage
 
-```bash
-pickledump <pickle_files> [OPTIONS]
 ```
+Usage: pickledump [OPTIONS] PICKLE_FILES...
 
-### Arguments
+  Dump, disassemble, or summarise Python pickle files.
 
-- `pickle_files`: One or more pickle files to process
+  PICKLE_FILES: One or more pickle files to process
 
-### Options
+Actions:
+  -s, --summary  Summarise information about the pickle file(s), including the
+                 Pickle protocol version and custom object classes
+  -x, --disasm   Disassemble mode (safe for untrusted files)
+  -d, --dump     Dump mode (deserialize)
 
-- `--disasm, -x`: Disassemble mode (safe for untrusted files)
-- `--dump, -d`: Dump mode (deserialize)
-- `--output, -o`: Output file (default: stdout)
-- `--annotate, -a`: Annotate each line with opcode descriptions (disassemble mode only)
-- `--indent-level, -l`: Indent level for MARK operations (disassemble mode only). Defaults to 4.
-- `--memo, -m`: Preserve memo between disassemblies (disassemble mode only)
-- `--summary, -s`: Summarise information about the pickle file(s), including the Pickle protocol version and any custom object classes found in the file. This is the default action.
+Output options:
+  -o, --output PATH  Output file (default: stdout)
+
+Disassemble options:
+  -a, --annotate              Annotate each line with opcode descriptions
+                              (disassemble mode only)
+  -l, --indent-level INTEGER  Indent level for MARK operations (disassemble
+                              mode only)
+  -m, --memo                  Preserve memo between disassemblies (disassemble
+                              mode only)
+```
 
 ### Examples
 
