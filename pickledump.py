@@ -129,7 +129,7 @@ class PickledumpCommand(click.Command):
                 formatter.write_dl(records)
 
 @click.command(cls=PickledumpCommand)
-@click.version_option(version=__version__, prog_name="pickledump")
+@click.version_option(message=f'pickledump {__version__} || Python {sys.version}')
 @click.argument('pickle_files', nargs=-1, required=True, type=click.Path(exists=True))
 @click.option(
     '--output',
